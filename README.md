@@ -43,4 +43,4 @@ Pairing uses an authenticated BLE link. The iPhone keeps its token in Keychain; 
 - [Design and BLE protocol](docs/planning/implement/windows-bluetooth-pc-remote/design.md)
 - [Implementation increments](docs/planning/implement/windows-bluetooth-pc-remote/increments.md)
 - [Behavior coverage and verification status](docs/planning/implement/windows-bluetooth-pc-remote/behaviors.md)
-- [Current development status](docs/planning/implement/windows-bluetooth-pc-remote/state.md)
+- [Development status and Windows handoff](docs/planning/implement/windows-bluetooth-pc-remote/state.md)
