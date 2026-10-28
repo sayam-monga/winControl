@@ -1,0 +1,374 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		072B6D5DC652296E92E93B57 /* RemoteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0CE511C2DBD36EF7027B4C8 /* RemoteView.swift */; };
+		166CFF90FBBF5CBE00CD8852 /* AppsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8286F94E2283CFD3A099634 /* AppsView.swift */; };
+		3C7005A9E7669C5B2B5EF8DE /* Touchpad.swift in Sources */ = {isa = PBXBuildFile; fileRef = D773F21AE9DA2A0E857AF6DC /* Touchpad.swift */; };
+		3FE80A3A7811A25A54550A12 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 31C7E6AAFF73EDCEC01EF9D1 /* Assets.xcassets */; };
+		5791FEF6A4C40AFA7A21FC32 /* ConnectViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A0E29E39C762790D146FF86 /* ConnectViews.swift */; };
+		9AEF9D1A5BFAFF02AD3AD82B /* Keys.swift in Sources */ = {isa = PBXBuildFile; fileRef = 682305456B60078328EF2F8A /* Keys.swift */; };
+		BE1A748EA5DC06F07E15DB1D /* Discovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA69F77F12FB3C28681038FD /* Discovery.swift */; };
+		B891A6D7C2E105106D4F0001 /* WindowsRemote.swift in Sources */ = {isa = PBXBuildFile; fileRef = B891A6D7C2E105106D4F0002 /* WindowsRemote.swift */; };
+		C6BD68B890B1A80194F8084B /* TokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EE8445EA3ADD9D418756F35 /* TokenStore.swift */; };
+		D3D7CF2072772403AAD5E76A /* RemoteApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E7DE033560D8AC3C583540A /* RemoteApp.swift */; };
+		FC1E40DF8505935A2A859015 /* TVRemote.swift in Sources */ = {isa = PBXBuildFile; fileRef = D52A34201283E4798FBCADD9 /* TVRemote.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		31C7E6AAFF73EDCEC01EF9D1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		4EE8445EA3ADD9D418756F35 /* TokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenStore.swift; sourceTree = "<group>"; };
+		4FAB557ECA086ABAA108B8DF /* TV Remote.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "TV Remote.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		682305456B60078328EF2F8A /* Keys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keys.swift; sourceTree = "<group>"; };
+		6A0E29E39C762790D146FF86 /* ConnectViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectViews.swift; sourceTree = "<group>"; };
+		6E7DE033560D8AC3C583540A /* RemoteApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteApp.swift; sourceTree = "<group>"; };
+		87D1D2281E3764D8A08032CF /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		D52A34201283E4798FBCADD9 /* TVRemote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVRemote.swift; sourceTree = "<group>"; };
+		D773F21AE9DA2A0E857AF6DC /* Touchpad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Touchpad.swift; sourceTree = "<group>"; };
+		DA69F77F12FB3C28681038FD /* Discovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Discovery.swift; sourceTree = "<group>"; };
+		B891A6D7C2E105106D4F0002 /* WindowsRemote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowsRemote.swift; sourceTree = "<group>"; };
+		F0CE511C2DBD36EF7027B4C8 /* RemoteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteView.swift; sourceTree = "<group>"; };
+		F8286F94E2283CFD3A099634 /* AppsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppsView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		3145F584C3C404668D995909 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				F8286F94E2283CFD3A099634 /* AppsView.swift */,
+				6A0E29E39C762790D146FF86 /* ConnectViews.swift */,
+				F0CE511C2DBD36EF7027B4C8 /* RemoteView.swift */,
+				D773F21AE9DA2A0E857AF6DC /* Touchpad.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		3E38660E6141FEAEE8267FC9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				4FAB557ECA086ABAA108B8DF /* TV Remote.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		9629C9B8A86407FF25D8A74D /* FreeMyTVRemote */ = {
+			isa = PBXGroup;
+			children = (
+				31C7E6AAFF73EDCEC01EF9D1 /* Assets.xcassets */,
+				87D1D2281E3764D8A08032CF /* Info.plist */,
+				6E7DE033560D8AC3C583540A /* RemoteApp.swift */,
+				D6F76EF8BAE3B74C7AB357AE /* Model */,
+				3145F584C3C404668D995909 /* Views */,
+			);
+			path = FreeMyTVRemote;
+			sourceTree = "<group>";
+		};
+		D6F76EF8BAE3B74C7AB357AE /* Model */ = {
+			isa = PBXGroup;
+			children = (
+				DA69F77F12FB3C28681038FD /* Discovery.swift */,
+				B891A6D7C2E105106D4F0002 /* WindowsRemote.swift */,
+				682305456B60078328EF2F8A /* Keys.swift */,
+				4EE8445EA3ADD9D418756F35 /* TokenStore.swift */,
+				D52A34201283E4798FBCADD9 /* TVRemote.swift */,
+			);
+			path = Model;
+			sourceTree = "<group>";
+		};
+		FCBF6287FB81B4301816DCB7 = {
+			isa = PBXGroup;
+			children = (
+				9629C9B8A86407FF25D8A74D /* FreeMyTVRemote */,
+				3E38660E6141FEAEE8267FC9 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		9723F7F2774C79D4305CCF71 /* FreeMyTVRemote */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6A27040339C2CFF3974DB6DB /* Build configuration list for PBXNativeTarget "FreeMyTVRemote" */;
+			buildPhases = (
+				2C0EB5A8C72C30753F920F8A /* Sources */,
+				A8CBB0CAF69B1B0B744243F2 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FreeMyTVRemote;
+			packageProductDependencies = (
+			);
+			productName = FreeMyTVRemote;
+			productReference = 4FAB557ECA086ABAA108B8DF /* TV Remote.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		C731A803408CB43A1BBCE733 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					9723F7F2774C79D4305CCF71 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 8E264AFA0A537FAD9734361E /* Build configuration list for PBXProject "FreeMyTVRemote" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = FCBF6287FB81B4301816DCB7;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 3E38660E6141FEAEE8267FC9 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				9723F7F2774C79D4305CCF71 /* FreeMyTVRemote */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A8CBB0CAF69B1B0B744243F2 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3FE80A3A7811A25A54550A12 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2C0EB5A8C72C30753F920F8A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				166CFF90FBBF5CBE00CD8852 /* AppsView.swift in Sources */,
+				5791FEF6A4C40AFA7A21FC32 /* ConnectViews.swift in Sources */,
+				BE1A748EA5DC06F07E15DB1D /* Discovery.swift in Sources */,
+				B891A6D7C2E105106D4F0001 /* WindowsRemote.swift in Sources */,
+				9AEF9D1A5BFAFF02AD3AD82B /* Keys.swift in Sources */,
+				D3D7CF2072772403AAD5E76A /* RemoteApp.swift in Sources */,
+				072B6D5DC652296E92E93B57 /* RemoteView.swift in Sources */,
+				FC1E40DF8505935A2A859015 /* TVRemote.swift in Sources */,
+				C6BD68B890B1A80194F8084B /* TokenStore.swift in Sources */,
+				3C7005A9E7669C5B2B5EF8DE /* Touchpad.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5DD9CC45A4AD47E6C96B63E3 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		7E0550843CCF21B4262B1686 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FreeMyTVRemote/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "TV Remote";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "TV Remote finds your TV or projector on your Wi-Fi and sends it button presses.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = io.freemytv.remote;
+				PRODUCT_NAME = "TV Remote";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		E1524D3114D23610DB1E19F5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		EF9DAF54F994CF25C91095D1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = FreeMyTVRemote/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "TV Remote";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "TV Remote finds your TV or projector on your Wi-Fi and sends it button presses.";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = io.freemytv.remote;
+				PRODUCT_NAME = "TV Remote";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		6A27040339C2CFF3974DB6DB /* Build configuration list for PBXNativeTarget "FreeMyTVRemote" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				EF9DAF54F994CF25C91095D1 /* Debug */,
+				7E0550843CCF21B4262B1686 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		8E264AFA0A537FAD9734361E /* Build configuration list for PBXProject "FreeMyTVRemote" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E1524D3114D23610DB1E19F5 /* Debug */,
+				5DD9CC45A4AD47E6C96B63E3 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = C731A803408CB43A1BBCE733 /* Project object */;
+}

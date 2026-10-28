@@ -1,0 +1,56 @@
+<Window x:Class="FreeMyTVRemote.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Free My TV Remote" Width="500" Height="590"
+        MinWidth="440" MinHeight="540"
+        Background="#F4F6FA" WindowStartupLocation="CenterScreen">
+  <Grid Margin="28">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
+    </Grid.RowDefinitions>
+
+    <StackPanel Grid.Row="0">
+      <TextBlock Text="Free My TV" Foreground="#172033" FontSize="30" FontWeight="SemiBold" />
+      <TextBlock Text="Windows PC remote" Foreground="#65708A" FontSize="16" Margin="0,3,0,0" />
+    </StackPanel>
+
+    <Border Grid.Row="1" Margin="0,24,0,18" Padding="14,12" CornerRadius="12" Background="#E8EBFF">
+      <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+        <Ellipse x:Name="StatusDot" Width="9" Height="9" Fill="#76809A" Margin="0,0,10,0" />
+        <TextBlock x:Name="StatusText" Text="Starting Bluetooth…" Foreground="#28314D" FontSize="14"
+                   TextWrapping="Wrap" VerticalAlignment="Center" />
+      </StackPanel>
+    </Border>
+
+    <Border Grid.Row="2" Padding="22" CornerRadius="18" Background="White">
+      <StackPanel>
+        <TextBlock x:Name="PairingHeading" Text="Pairing code" Foreground="#172033"
+                   FontSize="19" FontWeight="SemiBold" />
+        <TextBlock x:Name="PairingInstructions"
+                   Text="Open Free My TV on your iPhone, choose this Windows PC under Bluetooth, then enter the code shown here."
+                   Foreground="#65708A" FontSize="14" TextWrapping="Wrap" Margin="0,9,0,20" />
+        <Border x:Name="CodePanel" Padding="16,15" CornerRadius="14" Background="#F4F5FF">
+          <StackPanel>
+            <TextBlock Text="PAIRING CODE" Foreground="#65708A" FontSize="11" FontWeight="SemiBold"
+                       HorizontalAlignment="Center" />
+            <TextBlock x:Name="PairingCodeText" Text="------" Foreground="#242E58" FontSize="38"
+                       FontWeight="SemiBold" FontFamily="Consolas" HorizontalAlignment="Center" Margin="0,3,0,0" />
+            <TextBlock x:Name="PairingCountdownText" Text="" Foreground="#65708A" FontSize="12"
+                       HorizontalAlignment="Center" Margin="0,4,0,0" />
+          </StackPanel>
+        </Border>
+        <Button x:Name="ResetPairingButton" Content="Forget paired iPhone" Click="ResetPairing_Click"
+                Visibility="Collapsed" HorizontalAlignment="Left" Margin="0,19,0,0" Padding="14,8"
+                Background="#EEF0F6" BorderThickness="0" Foreground="#29334C" />
+        <TextBlock Text="The code expires after five minutes. Keep the iPhone app open while controlling this PC."
+                   Foreground="#7A8499" FontSize="12" TextWrapping="Wrap" Margin="0,18,0,0" />
+      </StackPanel>
+    </Border>
+
+    <TextBlock Grid.Row="3" Text="Bluetooth only · No shared Wi-Fi or internet required"
+               Foreground="#7A8499" FontSize="12" TextAlignment="Center" Margin="0,18,0,0" />
+  </Grid>
+</Window>

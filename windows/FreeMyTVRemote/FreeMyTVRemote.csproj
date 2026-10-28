@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <!-- The GATT server APIs used here were introduced in Windows 10 build 15063; the TFM stays newer for the compile-time API surface. -->
+    <SupportedOSPlatformVersion>10.0.15063.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>FreeMyTVRemote</AssemblyName>
+    <RootNamespace>FreeMyTVRemote</RootNamespace>
+  </PropertyGroup>
+</Project>
