@@ -4,13 +4,13 @@ Updated 2026-10-29. This handoff captures the reported disconnect and the Window
 
 ## Pick up the Windows change
 
-The current continuation branch is `codex/windows-bluetooth-fallback`. It includes the source fix in `windows/FreeMyTVRemote/Bluetooth/PcRemoteGattClient.cs` and updated status notes. The source compiled in a .NET 8 SDK container with Windows targeting enabled (0 errors, 3 existing CA1416 warnings), but no MSIX was produced. Pull this branch on Windows, rebuild the MSIX, install it, and retry the Bluetooth connection. The fix sets `GattCharacteristic.ProtectionLevel` to `EncryptionRequired` on the iPhone pairing and status characteristics before using them, matching the encrypted-access permissions declared by the iPhone.
+The continuation branch is `codex/windows-bluetooth-fallback`; it includes commit `22beb31` and follow-up Windows package and handoff updates. The Windows source compiled with the installed .NET SDK, and MSIX 1.0.2.0 was built and installed for the current Windows user. The fix sets `GattCharacteristic.ProtectionLevel` to `EncryptionRequired` on the iPhone pairing and status characteristics before using them, matching the encrypted-access permissions declared by the iPhone. Reopen the receiver and retry the Bluetooth connection.
 
 ## Windows build and installation
 
-Observed Windows setup: Windows 11 Home Single Language build 26200, .NET SDK 8.0.427, Windows SDK 10.0.22621.0. The MediaTek Bluetooth adapter and an iPhone appear in Windows device inventory, but BLE roles and app behavior have not been checked. The current x64 MSIX is version 1.0.1.0 at `windows/FreeMyTVRemote/artifacts/FreeMyTVRemote-x64.msix`; its public signing certificate is `windows/FreeMyTVRemote/artifacts/FreeMyTVRemote.cer`.
+Observed Windows setup: Windows 11 Home Single Language build 26200, .NET SDK 8.0.427, Windows SDK 10.0.22621.0. The MediaTek Bluetooth adapter and an iPhone appear in Windows device inventory, but BLE roles and app behavior have not been checked. MSIX 1.0.2.0 and its public signing certificate were generated under `windows/FreeMyTVRemote/artifacts/`; those build artifacts are local and are not included in the Git handoff. Rebuild the package on Windows if needed.
 
-The Windows source compiled successfully with .NET. The 1.0.1.0 MSIX was built and signed. The user reports that it installed successfully after closing the running 1.0.0.0 app. An earlier `-Install` attempt returned `0x800B0109` because its development certificate was untrusted; that was resolved before the reported install. The app has not yet been reopened for Bluetooth verification.
+The Windows source at `22beb31` compiled successfully with .NET. The 1.0.2.0 MSIX was built, signed, and installed for the current Windows user. An earlier `-Install` attempt returned `0x800B0109` because its development certificate was untrusted; that was resolved before the 1.0.1.0 install. The 1.0.2.0 app has not yet been reopened for Bluetooth verification.
 
 From an **Administrator PowerShell** window on this Windows PC, trust this local development certificate in the Local Computer Trusted People store:
 
@@ -43,14 +43,14 @@ For fallback pairing, use **Forget Windows pairing** on the iPhone to revoke its
 
 ## Mac build and device verification
 
-1. Open `ios/FreeMyTVRemote.xcodeproj` in Xcode. Run `xcodebuild -list -project ios/FreeMyTVRemote.xcodeproj` to inspect the available scheme, choose the Apple development team in Signing & Capabilities, and build for the attached iPhone. The INC3 peripheral-role additions have not yet been compiled with Xcode.
+1. Open `ios/FreeMyTVRemote.xcodeproj` in Xcode. Run `xcodebuild -list -project ios/FreeMyTVRemote.xcodeproj` to inspect the available scheme, choose the Apple development team in Signing & Capabilities, and build for the attached iPhone. The user reports that the app from commit `3002333` was built, signed, and installed; the current Mac checkout's Xcode build is not independently verified here.
 2. Fix any compiler, signing, permission-prompt, or lifecycle issues in the current working tree. Pay particular attention to CoreBluetooth peripheral delegate callbacks, encrypted GATT read/write permissions, notifications with backpressure, app backgrounding, and target persistence across relaunch.
 3. Install and launch the Windows MSIX using the instructions above. With both devices nearby, let Windows select its supported BLE role and record which path the app actually reports.
 4. Pair once, then exercise arrows, pointer movement, left/right click, text, enter/back, volume, mute, and play/pause. Verify disconnect, retry/reconnect, and pairing revocation. Check both role directions if adapters that support and do not support Windows peripheral mode are available.
 5. Confirm TV discovery, pairing, buttons, and app launching still work over the existing TV path.
 6. Update `behaviors.md` and `state.md` with only actions and results actually observed. Keep unrun or blocked checks explicitly unverified.
 
-Current observed verification: Windows x64 build succeeded with 3 existing CA1416 platform-availability warnings and 0 errors. The 1.0.1.0 MSIX pack/sign succeeded and produced a 78,408,959-byte package; the user reports successful installation after closing 1.0.0.0. An earlier app build shown in the user's screenshot started but reported that BLE advertising stopped while Bluetooth was reported on. The 1.0.1.0 update switches to the Windows client scan after an advertising failure, but this behavior has not been verified. Pairing, command delivery, reconnect, and TV behavior remain untested. The INC3 iPhone source has not been built on Mac yet.
+Current observed verification: Windows x64 build succeeded with 3 existing CA1416 platform-availability warnings and 0 errors. The 1.0.2.0 MSIX pack/sign succeeded and the install script reported success for the current Windows user. An earlier app build shown in the user's screenshot reported that BLE advertising stopped while Bluetooth was reported on; 1.0.1.0 added the Windows client scan on advertising failure. The user later reported a fallback disconnect; 1.0.2.0 adds encrypted GATT access requests but has not yet been reopened or tested. Pairing, command delivery, reconnect, and TV behavior remain untested.
 
 ## Main files changed for INC3
 
