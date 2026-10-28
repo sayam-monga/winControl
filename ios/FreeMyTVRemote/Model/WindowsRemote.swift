@@ -1,6 +1,8 @@
 import CoreBluetooth
 import CryptoKit
 import Foundation
+import Security
+import UIKit
 
 struct WindowsRemoteDevice: Identifiable {
     let id: UUID
@@ -57,7 +59,7 @@ private enum WindowsPairingStatus: UInt8 {
     case storageError = 5
 }
 
-/// Finds and controls the Windows receiver acting as a BLE GATT server.
+/// Connects to a Windows GATT server and advertises the matching GATT service for the Windows client fallback.
 final class WindowsRemoteTransport: NSObject {
     private static let serviceUUID = CBUUID(string: "6D4F0001-4A2B-4B91-A6D7-31B7C2E10510")
     private static let commandUUID = CBUUID(string: "6D4F0002-4A2B-4B91-A6D7-31B7C2E10510")
@@ -76,12 +78,16 @@ final class WindowsRemoteTransport: NSObject {
     var onStateChanged: ((WindowsLinkState) -> Void)?
     var onDiscoveryMessageChanged: ((String?) -> Void)?
     var onPairingCodeRejected: (() -> Void)?
+    var onFallbackPairingCodeChanged: ((String?) -> Void)?
+    var onFallbackConnection: ((UUID, String, Bool) -> Void)?
+    var onFallbackDisconnected: ((String) -> Void)?
 
     private(set) var devices: [WindowsRemoteDevice] = []
     private(set) var state: WindowsLinkState = .idle
     private(set) var discoveryMessage: String?
 
     private var central: CBCentralManager!
+    private var peripheralManager: CBPeripheralManager!
     private var discoveryRequested = false
     private var discovered: [UUID: WindowsRemoteDevice] = [:]
     private var targetIdentifier: UUID?
@@ -101,10 +107,24 @@ final class WindowsRemoteTransport: NSObject {
     private var inFlightCommand: Data?
     private var pointerRemainderX = 0.0
     private var pointerRemainderY = 0.0
+    private var fallbackAdvertisingRequested = false
+    private var fallbackService: CBMutableService?
+    private var fallbackCommandCharacteristic: CBMutableCharacteristic?
+    private var fallbackPairingCharacteristic: CBMutableCharacteristic?
+    private var fallbackStatusCharacteristic: CBMutableCharacteristic?
+    private var fallbackCentral: CBCentral?
+    private var fallbackSubscribedCentrals: [UUID: CBCentral] = [:]
+    private var fallbackCode: String?
+    private var fallbackCodeExpiresAt = Date.distantPast
+    private var fallbackPairingStatus: WindowsPairingStatus = .idle
+    private var fallbackFailedAttempts = 0
+    private var fallbackLockedUntil: Date?
+    private var fallbackTokenReadUntil: [UUID: Date] = [:]
 
     override init() {
         super.init()
         central = CBCentralManager(delegate: self, queue: .main)
+        peripheralManager = CBPeripheralManager(delegate: self, queue: .main)
     }
 
     func startDiscovery() {
@@ -114,6 +134,55 @@ final class WindowsRemoteTransport: NSObject {
             return
         }
         scanForWindowsReceivers()
+    }
+
+    func startFallbackAdvertising() {
+        fallbackAdvertisingRequested = true
+        refreshFallbackCode()
+        guard peripheralManager.state == .poweredOn else {
+            updateFallbackBluetoothMessage()
+            return
+        }
+        if fallbackService != nil {
+            if !peripheralManager.isAdvertising {
+                peripheralManager.startAdvertising([CBAdvertisementDataServiceUUIDsKey: [Self.serviceUUID]])
+            }
+            return
+        }
+        installFallbackServiceIfNeeded()
+    }
+
+    func stopFallbackAdvertising() {
+        fallbackAdvertisingRequested = false
+        if peripheralManager.isAdvertising { peripheralManager.stopAdvertising() }
+    }
+
+    func reconnectAsPeripheral(identifier: UUID, name: String) {
+        disconnect()
+        targetIdentifier = identifier
+        targetName = name
+        tokenAccount = Self.fallbackKeychainAccount(for: identifier)
+        token = TokenStore.data(for: tokenAccount)
+        setState(.connecting)
+        startFallbackAdvertising()
+    }
+
+    func forgetFallbackPairing() {
+        guard let identifier = fallbackCentral?.identifier ?? targetIdentifier else { return }
+        TokenStore.forget(Self.fallbackKeychainAccount(for: identifier))
+        fallbackTokenReadUntil.removeValue(forKey: identifier)
+        fallbackPairingStatus = .idle
+        fallbackFailedAttempts = 0
+        fallbackLockedUntil = nil
+        token = nil
+        refreshFallbackCode()
+        setState(.waitingForPairing)
+        notifyFallbackStatus()
+    }
+
+    func stopFallbackConnection() {
+        disconnect()
+        setState(.failed("Windows Bluetooth connection stopped. Tap Retry to reconnect."))
     }
 
     func stopDiscovery() {
@@ -158,6 +227,20 @@ final class WindowsRemoteTransport: NSObject {
     func disconnect() {
         discoveryRequested = false
         if central.isScanning { central.stopScan() }
+        stopFallbackAdvertising()
+        if let central = fallbackCentral {
+            fallbackSubscribedCentrals.removeValue(forKey: central.identifier)
+            fallbackCentral = nil
+        }
+        commandQueue.removeAll()
+        inFlightCommand = nil
+        if peripheralManager.state == .poweredOn {
+            peripheralManager.removeAllServices()
+        }
+        fallbackService = nil
+        fallbackCommandCharacteristic = nil
+        fallbackPairingCharacteristic = nil
+        fallbackStatusCharacteristic = nil
         if let peripheral = activePeripheral {
             activePeripheral = nil
             central.cancelPeripheralConnection(peripheral)
@@ -245,6 +328,10 @@ final class WindowsRemoteTransport: NSObject {
     }
 
     private static func keychainAccount(for identifier: UUID) -> String {
+        "windows-\(identifier.uuidString.lowercased())"
+    }
+
+    private static func fallbackKeychainAccount(for identifier: UUID) -> String {
         "windows-\(identifier.uuidString.lowercased())"
     }
 
@@ -386,6 +473,16 @@ final class WindowsRemoteTransport: NSObject {
     }
 
     private func writeNextCommandIfNeeded() {
+        if let central = fallbackCentral {
+            guard state == .connected,
+                  let characteristic = fallbackCommandCharacteristic,
+                  peripheralManager.state == .poweredOn else { return }
+            while let frame = commandQueue.first {
+                guard peripheralManager.updateValue(frame, for: characteristic, onSubscribedCentrals: [central]) else { return }
+                commandQueue.removeFirst()
+            }
+            return
+        }
         guard state == .connected,
               inFlightCommand == nil,
               !commandQueue.isEmpty,
@@ -394,6 +491,188 @@ final class WindowsRemoteTransport: NSObject {
         let frame = commandQueue.removeFirst()
         inFlightCommand = frame
         peripheral.writeValue(frame, for: characteristic, type: .withResponse)
+    }
+
+    private func installFallbackServiceIfNeeded() {
+        guard fallbackAdvertisingRequested,
+              peripheralManager.state == .poweredOn,
+              fallbackService == nil else { return }
+
+        refreshFallbackCode()
+        let command = CBMutableCharacteristic(
+            type: Self.commandUUID,
+            properties: [.notify],
+            value: nil,
+            permissions: [])
+        let pairing = CBMutableCharacteristic(
+            type: Self.pairingUUID,
+            properties: [.read, .write],
+            value: nil,
+            permissions: [.readEncryptionRequired, .writeEncryptionRequired])
+        let status = CBMutableCharacteristic(
+            type: Self.statusUUID,
+            properties: [.read, .notify],
+            value: nil,
+            permissions: [.readEncryptionRequired])
+        let service = CBMutableService(type: Self.serviceUUID, primary: true)
+        service.characteristics = [command, pairing, status]
+        fallbackCommandCharacteristic = command
+        fallbackPairingCharacteristic = pairing
+        fallbackStatusCharacteristic = status
+        fallbackService = service
+        peripheralManager.add(service)
+    }
+
+    private func refreshFallbackCode() {
+        guard fallbackCode == nil || fallbackCodeExpiresAt <= Date() else { return }
+        fallbackCode = String(format: "%06d", Int.random(in: 0..<1_000_000))
+        fallbackCodeExpiresAt = Date().addingTimeInterval(5 * 60)
+        fallbackFailedAttempts = 0
+        fallbackLockedUntil = nil
+        fallbackPairingStatus = .idle
+        onFallbackPairingCodeChanged?(fallbackCode)
+    }
+
+    private func updateFallbackBluetoothMessage() {
+        switch peripheralManager.state {
+        case .poweredOff:
+            setDiscoveryMessage("Turn on Bluetooth on the iPhone to advertise for the Windows receiver.")
+        case .unauthorized:
+            setDiscoveryMessage("Allow Bluetooth access for Free My TV in iPhone Settings.")
+        case .unsupported:
+            setDiscoveryMessage("This iPhone can't advertise a Bluetooth LE service.")
+        case .resetting, .unknown:
+            setDiscoveryMessage("iPhone Bluetooth is starting. Keep the Windows connection screen open.")
+        case .poweredOn:
+            setDiscoveryMessage(nil)
+        @unknown default:
+            setDiscoveryMessage("iPhone Bluetooth is unavailable.")
+        }
+    }
+
+    private func fallbackAccount(for central: CBCentral) -> String {
+        Self.fallbackKeychainAccount(for: central.identifier)
+    }
+
+    private func fallbackStatusValue(for central: CBCentral) -> Data {
+        let account = fallbackAccount(for: central)
+        let paired = TokenStore.data(for: account)?.count == 32
+        return Data([
+            Self.protocolVersion,
+            peripheralManager.isAdvertising ? 1 : 0,
+            fallbackSubscribedCentrals[central.identifier] == nil ? 0 : 1,
+            paired ? 1 : 0,
+            paired ? WindowsPairingStatus.paired.rawValue : fallbackPairingStatus.rawValue
+        ])
+    }
+
+    private func notifyFallbackStatus() {
+        guard let characteristic = fallbackStatusCharacteristic else { return }
+        for central in fallbackSubscribedCentrals.values {
+            _ = peripheralManager.updateValue(fallbackStatusValue(for: central), for: characteristic, onSubscribedCentrals: [central])
+        }
+    }
+
+    private func handleFallbackPairingWrite(_ request: CBATTRequest) -> CBATTError.Code {
+        let central = request.central
+        let account = fallbackAccount(for: central)
+        let now = Date()
+        if TokenStore.data(for: account)?.count == 32 {
+            fallbackPairingStatus = .paired
+            fallbackTokenReadUntil[central.identifier] = now.addingTimeInterval(2 * 60)
+            return .success
+        }
+        if let lockedUntil = fallbackLockedUntil, lockedUntil > now {
+            fallbackPairingStatus = .locked
+            return .success
+        }
+        if fallbackCode == nil || fallbackCodeExpiresAt <= now {
+            refreshFallbackCode()
+            fallbackPairingStatus = .codeExpired
+            return .success
+        }
+
+        guard request.offset == 0,
+              let value = request.value,
+              value.count == 8,
+              value[0] == Self.protocolVersion,
+              value[1] == Self.pairingOpcode,
+              let candidate = String(data: value.suffix(6), encoding: .ascii),
+              candidate.utf8.allSatisfy({ (48...57).contains($0) }) else {
+            fallbackPairingStatus = .invalidCode
+            registerFallbackPairingFailure()
+            return .success
+        }
+
+        guard let expected = fallbackCode, candidate == expected else {
+            fallbackPairingStatus = .invalidCode
+            registerFallbackPairingFailure()
+            return .success
+        }
+
+        var tokenData = Data(count: 32)
+        let randomStatus = tokenData.withUnsafeMutableBytes { bytes in
+            SecRandomCopyBytes(kSecRandomDefault, bytes.count, bytes.baseAddress!)
+        }
+        guard randomStatus == errSecSuccess, TokenStore.save(tokenData, for: account) else {
+            tokenData.resetBytes(in: 0..<tokenData.count)
+            fallbackPairingStatus = .storageError
+            return .success
+        }
+        tokenData.resetBytes(in: 0..<tokenData.count)
+        fallbackTokenReadUntil[central.identifier] = now.addingTimeInterval(2 * 60)
+        fallbackPairingStatus = .paired
+        fallbackFailedAttempts = 0
+        fallbackLockedUntil = nil
+        notifyFallbackStatus()
+        return .success
+    }
+
+    private func registerFallbackPairingFailure() {
+        if let lockedUntil = fallbackLockedUntil, lockedUntil <= Date() {
+            fallbackLockedUntil = nil
+            fallbackFailedAttempts = 0
+        }
+        fallbackFailedAttempts += 1
+        if fallbackFailedAttempts >= 3 {
+            fallbackLockedUntil = Date().addingTimeInterval(60)
+            fallbackPairingStatus = .locked
+        }
+    }
+
+    private func readFallbackValue(for request: CBATTRequest) -> Data? {
+        switch request.characteristic.uuid {
+        case Self.statusUUID:
+            return fallbackStatusValue(for: request.central)
+        case Self.pairingUUID:
+            let account = fallbackAccount(for: request.central)
+            guard let tokenData = TokenStore.data(for: account), tokenData.count == 32 else {
+                return Data([Self.protocolVersion, fallbackPairingStatus.rawValue])
+            }
+            let until = fallbackTokenReadUntil[request.central.identifier] ?? Date().addingTimeInterval(2 * 60)
+            guard until > Date() else {
+                fallbackTokenReadUntil.removeValue(forKey: request.central.identifier)
+                return Data([Self.protocolVersion, WindowsPairingStatus.paired.rawValue])
+            }
+            fallbackTokenReadUntil[request.central.identifier] = until
+            return tokenData
+        default:
+            return nil
+        }
+    }
+
+    private func handleFallbackRead(_ request: CBATTRequest) {
+        guard let value = readFallbackValue(for: request) else {
+            peripheralManager.respond(to: request, withResult: .attributeNotFound)
+            return
+        }
+        guard request.offset >= 0, request.offset <= value.count else {
+            peripheralManager.respond(to: request, withResult: .invalidOffset)
+            return
+        }
+        let chunkLength = min(value.count - request.offset, request.central.maximumUpdateValueLength)
+        request.value = value.subdata(in: request.offset..<(request.offset + chunkLength))
+        peripheralManager.respond(to: request, withResult: .success)
     }
 
     private func handleStatus(_ data: Data) {
@@ -635,6 +914,115 @@ extension WindowsRemoteTransport: CBPeripheralDelegate {
             return
         }
         inFlightCommand = nil
+        writeNextCommandIfNeeded()
+    }
+}
+
+extension WindowsRemoteTransport: CBPeripheralManagerDelegate {
+    func peripheralManagerDidUpdateState(_ peripheral: CBPeripheralManager) {
+        updateFallbackBluetoothMessage()
+        guard fallbackAdvertisingRequested else { return }
+        if peripheral.state == .poweredOn {
+            installFallbackServiceIfNeeded()
+        } else if peripheral.state == .unauthorized || peripheral.state == .unsupported {
+            setState(.failed("The iPhone can't advertise for the Windows receiver. Check Bluetooth settings and retry."))
+        }
+    }
+
+    func peripheralManager(_ peripheral: CBPeripheralManager, didAdd service: CBService, error: Error?) {
+        guard service.uuid == Self.serviceUUID else { return }
+        if let error {
+            setDiscoveryMessage("Couldn't prepare the iPhone Bluetooth service: \(error.localizedDescription)")
+            setState(.failed("The iPhone couldn't prepare its Bluetooth service. Turn Bluetooth on and retry."))
+            return
+        }
+        guard fallbackAdvertisingRequested else { return }
+        peripheral.startAdvertising([CBAdvertisementDataServiceUUIDsKey: [Self.serviceUUID]])
+    }
+
+    func peripheralManager(_ peripheral: CBPeripheralManager, didStartAdvertising error: Error?) {
+        if let error {
+            setDiscoveryMessage("Couldn't advertise for Windows: \(error.localizedDescription)")
+            setState(.failed("The iPhone couldn't advertise for the Windows receiver. Keep the app open and retry."))
+            return
+        }
+        if fallbackAdvertisingRequested {
+            setDiscoveryMessage("Advertising for the Windows receiver. Keep this screen open; enter the displayed code in Windows to pair.")
+        }
+    }
+
+    func peripheralManager(_ peripheral: CBPeripheralManager, didReceiveRead request: CBATTRequest) {
+        guard UIApplication.shared.applicationState == .active else {
+            peripheral.respond(to: request, withResult: .insufficientAuthorization)
+            return
+        }
+        handleFallbackRead(request)
+    }
+
+    func peripheralManager(_ peripheral: CBPeripheralManager, didReceiveWrite requests: [CBATTRequest]) {
+        guard UIApplication.shared.applicationState == .active else {
+            requests.forEach { peripheral.respond(to: $0, withResult: .insufficientAuthorization) }
+            return
+        }
+        for request in requests {
+            guard request.characteristic.uuid == Self.pairingUUID else {
+                peripheral.respond(to: request, withResult: .writeNotPermitted)
+                continue
+            }
+            let result = handleFallbackPairingWrite(request)
+            peripheral.respond(to: request, withResult: result)
+        }
+        notifyFallbackStatus()
+        if let central = fallbackCentral {
+            let paired = TokenStore.data(for: fallbackAccount(for: central))?.count == 32
+            setState(paired ? .connected : .waitingForPairing)
+            onFallbackConnection?(central.identifier, "Windows PC", paired)
+        }
+    }
+
+    func peripheralManager(_ peripheral: CBPeripheralManager, central: CBCentral, didSubscribeTo characteristic: CBCharacteristic) {
+        guard characteristic.uuid == Self.commandUUID else { return }
+        sequence = 0
+        commandQueue.removeAll()
+        inFlightCommand = nil
+        pointerRemainderX = 0
+        pointerRemainderY = 0
+        fallbackSubscribedCentrals[central.identifier] = central
+        fallbackCentral = central
+        fallbackAdvertisingRequested = false
+        if peripheral.isAdvertising { peripheral.stopAdvertising() }
+        if targetIdentifier == nil || targetIdentifier != central.identifier {
+            targetIdentifier = central.identifier
+            targetName = "Windows PC"
+            tokenAccount = Self.fallbackKeychainAccount(for: central.identifier)
+            token = TokenStore.data(for: tokenAccount)
+        }
+        let paired = token?.count == 32
+        setState(paired ? .connected : .waitingForPairing)
+        onFallbackConnection?(central.identifier, targetName, paired)
+        notifyFallbackStatus()
+    }
+
+    func peripheralManager(_ peripheral: CBPeripheralManager, central: CBCentral, didUnsubscribeFrom characteristic: CBCharacteristic) {
+        guard characteristic.uuid == Self.commandUUID else { return }
+        fallbackSubscribedCentrals.removeValue(forKey: central.identifier)
+        fallbackTokenReadUntil.removeValue(forKey: central.identifier)
+        if fallbackCentral?.identifier == central.identifier {
+            fallbackCentral = nil
+            commandQueue.removeAll()
+            inFlightCommand = nil
+            sequence = 0
+            pointerRemainderX = 0
+            pointerRemainderY = 0
+            if targetIdentifier == central.identifier {
+                setState(.failed("Bluetooth disconnected from the Windows receiver. Keep the app open and retry."))
+                onFallbackDisconnected?("Bluetooth disconnected from the Windows receiver. Keep the iPhone app open and retry.")
+            }
+        }
+        notifyFallbackStatus()
+    }
+
+    func peripheralManagerIsReady(toUpdateSubscribers peripheral: CBPeripheralManager) {
         writeNextCommandIfNeeded()
     }
 }

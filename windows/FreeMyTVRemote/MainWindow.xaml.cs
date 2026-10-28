@@ -12,7 +12,10 @@ public partial class MainWindow : Window
     private readonly PairingManager _pairing = new();
     private readonly DispatcherTimer _refreshTimer;
     private PcRemoteGattServer? _server;
+    private PcRemoteGattClient? _client;
     private bool _advertising;
+    private bool _usingFallback;
+    private bool _isClosing;
 
     public MainWindow()
     {
@@ -42,13 +45,11 @@ public partial class MainWindow : Window
         }
         catch (NotSupportedException exception)
         {
-            _advertising = false;
-            SetStatus(exception.Message);
+            await StartFallbackClientAsync(exception.Message);
         }
         catch (Exception exception)
         {
-            _advertising = false;
-            SetStatus($"Windows couldn't start the Bluetooth service: {exception.Message}");
+            await StartFallbackClientAsync($"Windows couldn't start its Bluetooth receiver: {exception.Message}");
         }
 
         RefreshPairingUi();
@@ -56,21 +57,85 @@ public partial class MainWindow : Window
 
     private void MainWindow_Closed(object? sender, EventArgs e)
     {
+        _isClosing = true;
         _refreshTimer.Stop();
         if (_server is not null)
         {
             _server.StatusChanged -= Server_StatusChanged;
             _server.Dispose();
         }
+        if (_client is not null)
+        {
+            _client.StatusChanged -= Client_StatusChanged;
+            _client.StateChanged -= Client_StateChanged;
+            _client.Dispose();
+        }
+    }
+
+    private async Task StartFallbackClientAsync(string serverUnavailableReason)
+    {
+        if (_usingFallback || _isClosing)
+            return;
+
+        _advertising = false;
+        _usingFallback = true;
+        if (_server is not null)
+        {
+            _server.StatusChanged -= Server_StatusChanged;
+            _server.Dispose();
+            _server = null;
+        }
+        _client = new PcRemoteGattClient(_pairing, new WindowsInputDispatcher());
+        _client.StatusChanged += Client_StatusChanged;
+        _client.StateChanged += Client_StateChanged;
+        SetStatus($"{serverUnavailableReason} Windows is switching to iPhone compatibility mode.");
+        try
+        {
+            await _client.StartAsync();
+        }
+        catch (Exception exception)
+        {
+            SetStatus($"Windows couldn't start the Bluetooth client: {exception.Message}");
+        }
+        RefreshPairingUi();
+    }
+
+    private void Client_StatusChanged(object? sender, string message)
+    {
+        Dispatcher.BeginInvoke(() =>
+        {
+            SetStatus(message);
+            RefreshPairingUi();
+        });
+    }
+
+    private void Client_StateChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.BeginInvoke(RefreshPairingUi);
+    }
+
+    private async void FallbackPair_Click(object sender, RoutedEventArgs e)
+    {
+        if (_client is null)
+            return;
+        var code = new string(FallbackPairingCodeText.Text.Where(character => character is >= '0' and <= '9').Take(6).ToArray());
+        FallbackPairingCodeText.Text = code;
+        await _client.SubmitPairingCodeAsync(code);
+        FallbackPairingCodeText.Clear();
     }
 
     private void Server_StatusChanged(object? sender, string message)
     {
         Dispatcher.BeginInvoke(() =>
         {
+            if (_isClosing || _usingFallback)
+                return;
+
             _advertising = _server?.IsAdvertising ?? false;
             SetStatus(message);
             RefreshPairingUi();
+            if (!_advertising && _server is not null)
+                _ = StartFallbackClientAsync(message);
         });
     }
 
@@ -79,6 +144,8 @@ public partial class MainWindow : Window
         Dispatcher.BeginInvoke(() =>
         {
             RefreshPairingUi();
+            if (_usingFallback)
+                return;
             if (_pairing.IsPaired)
             {
                 var status = !_advertising
@@ -94,8 +161,8 @@ public partial class MainWindow : Window
     private void ResetPairing_Click(object sender, RoutedEventArgs e)
     {
         var answer = MessageBox.Show(
-            "This forgets the saved iPhone pairing. You'll need to pair again with a new code.",
-            "Forget paired iPhone?",
+            "This forgets the saved Bluetooth pairing. You'll need to pair again with a new code.",
+            "Forget Bluetooth pairing?",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
         if (answer != MessageBoxResult.Yes)
@@ -114,6 +181,13 @@ public partial class MainWindow : Window
 
     private void RefreshPairingUi()
     {
+        if (_usingFallback)
+        {
+            RefreshFallbackUi();
+            return;
+        }
+
+        FallbackPairingPanel.Visibility = Visibility.Collapsed;
         if (_pairing.StorageError is not null)
         {
             PairingHeading.Text = "Pairing storage needs attention";
@@ -127,7 +201,7 @@ public partial class MainWindow : Window
         if (!_advertising)
         {
             PairingHeading.Text = "Bluetooth setup";
-            PairingInstructions.Text = "This Windows adapter must support BLE peripheral mode. The iPhone fallback connection will be added in a later update.";
+            PairingInstructions.Text = "Windows could not start its Bluetooth receiver.";
             CodePanel.Visibility = Visibility.Collapsed;
             ResetPairingButton.Visibility = _pairing.IsPaired ? Visibility.Visible : Visibility.Collapsed;
             return;
@@ -165,9 +239,65 @@ public partial class MainWindow : Window
         CodePanel.Visibility = Visibility.Visible;
     }
 
+    private void RefreshFallbackUi()
+    {
+        CodePanel.Visibility = Visibility.Collapsed;
+        var client = _client;
+        if (_pairing.StorageError is not null)
+        {
+            PairingHeading.Text = "Pairing storage needs attention";
+            PairingInstructions.Text = _pairing.StorageError;
+            FallbackPairingPanel.Visibility = Visibility.Collapsed;
+            ResetPairingButton.Content = "Reset saved pairing";
+            ResetPairingButton.Visibility = Visibility.Visible;
+            return;
+        }
+
+        if (client?.IsConnected == true && client.HasSavedPairingForPeer)
+        {
+            PairingHeading.Text = "iPhone connected";
+            PairingInstructions.Text = "The iPhone remote is connected over Bluetooth. Windows accepts only authenticated, allowlisted remote commands.";
+            FallbackPairingPanel.Visibility = Visibility.Collapsed;
+            ResetPairingButton.Visibility = Visibility.Collapsed;
+            return;
+        }
+
+        ResetPairingButton.Visibility = _pairing.IsPaired ? Visibility.Visible : Visibility.Collapsed;
+        ResetPairingButton.Content = "Clear Windows pairing";
+        if (client?.IsConnected == true && !_pairing.IsPaired)
+        {
+            PairingHeading.Text = "Pairing cleared on Windows";
+            PairingInstructions.Text = "On the iPhone, tap Forget Windows pairing to clear its saved token. Windows will show a new code after the phone forgets it.";
+            FallbackPairingPanel.Visibility = Visibility.Collapsed;
+            ResetPairingButton.Visibility = Visibility.Collapsed;
+            return;
+        }
+        if (client?.IsWaitingForPairing == true)
+        {
+            PairingHeading.Text = "Pair with iPhone";
+            if (_pairing.IsPaired)
+            {
+                PairingInstructions.Text = client.HasSavedPairingForPeer
+                    ? "Windows and the iPhone don't have matching saved pairing data. Forget the pairing on both devices, reconnect, and pair again."
+                    : "Windows has a saved pairing for a different iPhone. Forget the saved pairing, then reconnect and pair this iPhone.";
+                FallbackPairingPanel.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                PairingInstructions.Text = "Keep the iPhone's Windows connection screen open. Enter the current six-digit code shown there.";
+                FallbackPairingPanel.Visibility = Visibility.Visible;
+            }
+            return;
+        }
+
+        PairingHeading.Text = "Waiting for iPhone";
+        PairingInstructions.Text = "On the iPhone, open Free My TV, choose Windows PC over Bluetooth, and keep the connection screen open.";
+        FallbackPairingPanel.Visibility = Visibility.Collapsed;
+    }
+
     private void SetStatus(string message)
     {
         StatusText.Text = message;
-        StatusDot.Fill = _advertising ? Brushes.ForestGreen : Brushes.SlateGray;
+        StatusDot.Fill = _advertising || _client?.IsConnected == true ? Brushes.ForestGreen : Brushes.SlateGray;
     }
 }

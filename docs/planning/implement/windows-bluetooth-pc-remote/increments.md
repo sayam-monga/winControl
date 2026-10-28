@@ -4,7 +4,7 @@
 
 ## INC1 — Windows receiver and secure GATT server
 
-Build the Windows receiver shell, custom GATT service, encrypted command characteristic, pairing flow, protected token storage, and allowlisted input dispatcher. Detect whether the PC adapter supports BLE peripheral mode. If it does not, explain that the iPhone fallback path is coming in the next slice.
+Build the Windows receiver shell, custom GATT service, encrypted command characteristic, pairing flow, protected token storage, and allowlisted input dispatcher. Detect whether the PC adapter supports BLE peripheral mode. If it does not, explain the limitation and start the iPhone fallback path from INC3.
 
 Acceptance criteria:
 

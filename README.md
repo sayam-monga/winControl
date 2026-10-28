@@ -4,9 +4,9 @@ A Windows receiver and iPhone companion app for controlling a Windows PC over Bl
 
 ## Current status
 
-The first connection direction is implemented: Windows advertises a BLE GATT service and the iPhone app connects as the central. The PC's Bluetooth adapter and driver must support BLE peripheral mode. The reverse direction, where the iPhone advertises and Windows scans, is planned in INC3.
+Both BLE role directions now have source implementations. Windows uses its GATT server when the adapter supports the peripheral role; otherwise, it scans while the iPhone advertises from the Windows connection screen. The approved INC3 fallback source has not yet been built with Xcode or verified with an iPhone.
 
-The Windows receiver source cross-published successfully on macOS, but it has not yet been built into an installable MSIX or tested on a Windows PC. Windows requires package identity for this Bluetooth GATT server, so the standalone `.exe` is not the installable app. The Windows build script packages and signs an MSIX using the Windows SDK.
+The Windows x64 receiver builds and packages as an MSIX on Windows. Version 1.0.1.0 was built and signed with a local development certificate on 2026-10-29. A screenshot of an earlier installed build showed Windows BLE advertising stop while Bluetooth was reported on; this update switches to the iPhone compatibility scan when advertising fails. The user reports that version 1.0.1.0 installed successfully after closing version 1.0.0.0. BLE discovery, pairing, commands, and reconnect have not yet been verified on devices. Windows requires package identity and the `bluetooth` capability, so the standalone `.exe` is not the installable app. See [the Mac handoff](docs/planning/implement/windows-bluetooth-pc-remote/windows-to-mac-handoff.md) for the next steps.
 
 ## Build the Windows receiver
 
@@ -17,13 +17,13 @@ cd windows/FreeMyTVRemote
 .\build-package.ps1
 ```
 
-To also trust the local development certificate and install the package for the current Windows user:
+To also import the development certificate into the current user's Trusted People store and install the package for that Windows user:
 
 ```powershell
 .\build-package.ps1 -Install
 ```
 
-Review the package and local certificate behavior in [the Windows setup guide](windows/FreeMyTVRemote/README.md) before installing. Public distribution will require a publisher-owned signing certificate.
+Windows may also require this development certificate in the Local Computer Trusted People store. That one-time step requires an administrator PowerShell window; the MSIX itself is still installed for the Windows user who runs `Add-AppxPackage`. Follow [the Windows setup guide](windows/FreeMyTVRemote/README.md) before installing. Public distribution will require a publisher-owned signing certificate.
 
 ## Build the iPhone companion
 
@@ -31,9 +31,8 @@ The iOS app source is in `ios/`. Building and signing it requires macOS with Xco
 
 ## Pair and use
 
-1. Open Free My TV Remote on Windows and leave it running. A compatible adapter displays a six-digit pairing code.
-2. In the iPhone app, choose **Windows PC over Bluetooth**, select the receiver, and enter the code.
-3. Keep the iPhone app in the foreground and the Windows receiver open while controlling the PC.
+1. Open Free My TV Remote on Windows and leave it running. If Windows can advertise as a BLE peripheral, it displays a six-digit code and appears in the iPhone's Windows PC list. If it cannot, open the iPhone app's Windows connection screen; Windows scans for the iPhone and the code appears on the phone for entry in the Windows receiver.
+2. Keep the iPhone app in the foreground and the Windows receiver open while controlling the PC.
 
 Pairing uses an authenticated BLE link. The iPhone keeps its token in Keychain; Windows keeps its token encrypted for the current Windows user. The receiver dispatches an allowlist of keyboard, text, pointer, and media actions.
 
@@ -44,3 +43,4 @@ Pairing uses an authenticated BLE link. The iPhone keeps its token in Keychain; 
 - [Implementation increments](docs/planning/implement/windows-bluetooth-pc-remote/increments.md)
 - [Behavior coverage and verification status](docs/planning/implement/windows-bluetooth-pc-remote/behaviors.md)
 - [Current development status](docs/planning/implement/windows-bluetooth-pc-remote/state.md)
+- [Windows-to-Mac implementation and test handoff](docs/planning/implement/windows-bluetooth-pc-remote/windows-to-mac-handoff.md)

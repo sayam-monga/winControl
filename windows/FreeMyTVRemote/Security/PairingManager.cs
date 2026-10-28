@@ -41,6 +41,10 @@ internal sealed class PairingManager
 
     internal event EventHandler? StateChanged;
     internal string? StorageError { get; private set; }
+    internal string? PairedPeerDeviceId
+    {
+        get { lock (_gate) return _pairedPeerDeviceId; }
+    }
 
     internal PairingManager()
     {
@@ -232,6 +236,45 @@ internal sealed class PairingManager
     {
         lock (_gate)
             return _token is not null && string.Equals(_pairedPeerDeviceId, peerDeviceId, StringComparison.Ordinal);
+    }
+
+    internal bool SavePairingToken(ReadOnlySpan<byte> token, string peerDeviceId)
+    {
+        if (token.Length != TokenLength || string.IsNullOrWhiteSpace(peerDeviceId))
+            return false;
+
+        var saved = false;
+        lock (_gate)
+        {
+            if (StorageError is not null || (_token is not null && !string.Equals(_pairedPeerDeviceId, peerDeviceId, StringComparison.Ordinal)))
+                return false;
+
+            try
+            {
+                _store.Save(token, peerDeviceId);
+                if (_token is not null)
+                    CryptographicOperations.ZeroMemory(_token);
+                _token = token.ToArray();
+                _pairedPeerDeviceId = peerDeviceId;
+                _code = null;
+                _lockedUntil = null;
+                _failedAttempts = 0;
+                _tokenReadUntil = null;
+                _lastSequence = 0;
+                _hasLastSequence = false;
+                StorageError = null;
+                _lastStatus = PairingReadStatus.Paired;
+                saved = true;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or CryptographicException or System.ComponentModel.Win32Exception or ArgumentException)
+            {
+                StorageError = "Windows couldn't securely save the pairing. Check your Windows user profile and try again.";
+                _lastStatus = PairingReadStatus.StorageError;
+            }
+        }
+
+        StateChanged?.Invoke(this, EventArgs.Empty);
+        return saved;
     }
 
     internal void BeginConnectionSession(string peerDeviceId)

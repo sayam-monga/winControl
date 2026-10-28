@@ -44,7 +44,8 @@ if (-not $makeAppx -or -not $signTool) {
 try {
     New-Item -ItemType Directory -Path $publishDirectory -Force | Out-Null
     New-Item -ItemType Directory -Path $stagingDirectory -Force | Out-Null
-    & dotnet publish $projectPath -c Release -r $runtimeIdentifier --self-contained true "-p:PlatformTarget=$platformTarget" -o $publishDirectory
+    # Some Windows images have a NuGet config with no enabled sources; provide nuget.org for this build without editing user config.
+    & dotnet publish $projectPath -c Release -r $runtimeIdentifier --self-contained true "-p:PlatformTarget=$platformTarget" -p:RestoreSources=https://api.nuget.org/v3/index.json -o $publishDirectory
     if ($LASTEXITCODE -ne 0) { throw 'The .NET publish step failed.' }
 
     Copy-Item -Path (Join-Path $publishDirectory '*') -Destination $stagingDirectory -Recurse -Force

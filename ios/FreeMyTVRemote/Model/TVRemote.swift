@@ -31,12 +31,21 @@ final class TVRemote {
     private(set) var loadingApps = false
     private(set) var windowsDevices: [WindowsRemoteDevice] = []
     private(set) var windowsDiscoveryMessage: String?
+    private(set) var fallbackPairingCode: String?
     /// A wrong code was typed; the field shakes and clears.
     private(set) var codeRejected = 0
 
     var isWindowsPC: Bool {
         guard let target else { return false }
-        if case .windowsPC = target { return true }
+        switch target {
+        case .windowsPC, .windowsPCPeripheral: return true
+        case .tv: return false
+        }
+    }
+
+    var isWindowsPCFallback: Bool {
+        guard let target else { return false }
+        if case .windowsPCPeripheral = target { return true }
         return false
     }
 
@@ -73,6 +82,25 @@ final class TVRemote {
         windowsTransport.onPairingCodeRejected = { [weak self] in
             Task { @MainActor in self?.codeRejected += 1 }
         }
+        windowsTransport.onFallbackPairingCodeChanged = { [weak self] code in
+            Task { @MainActor in self?.fallbackPairingCode = code }
+        }
+        windowsTransport.onFallbackConnection = { [weak self] identifier, name, paired in
+            Task { @MainActor in
+                guard let self else { return }
+                self.target = .windowsPCPeripheral(identifier: identifier, name: name)
+                if let data = try? JSONEncoder().encode(self.target) { UserDefaults.standard.set(data, forKey: Self.lastTargetKey) }
+                self.tvName = name
+                self.apps = []
+                self.state = paired ? .connected : .enterCode
+            }
+        }
+        windowsTransport.onFallbackDisconnected = { [weak self] message in
+            Task { @MainActor in
+                guard let self, self.isWindowsPCFallback else { return }
+                self.state = .failed(message)
+            }
+        }
         if let data = UserDefaults.standard.data(forKey: Self.lastTargetKey),
            let saved = try? JSONDecoder().decode(RemoteTarget.self, from: data) {
             target = saved
@@ -106,10 +134,12 @@ final class TVRemote {
 
     func startWindowsDiscovery() {
         windowsTransport.startDiscovery()
+        windowsTransport.startFallbackAdvertising()
     }
 
     func stopWindowsDiscovery() {
         windowsTransport.stopDiscovery()
+        windowsTransport.stopFallbackAdvertising()
     }
 
     /// Connects (again) to the last selected TV or Windows PC.
@@ -121,6 +151,10 @@ final class TVRemote {
         case .windowsPC(let identifier, let name):
             tvName = name
             windowsTransport.reconnect(identifier: identifier, name: name)
+            return
+        case .windowsPCPeripheral(let identifier, let name):
+            tvName = name
+            windowsTransport.reconnectAsPeripheral(identifier: identifier, name: name)
             return
         case .tv(let tvTarget):
             tvName = tvTarget.label
@@ -302,6 +336,16 @@ final class TVRemote {
             return
         }
         send(["t": "code", "code": code])
+    }
+
+    func forgetFallbackPairing() {
+        guard isWindowsPCFallback else { return }
+        windowsTransport.forgetFallbackPairing()
+    }
+
+    func stopWindowsFallback() {
+        guard isWindowsPCFallback else { return }
+        windowsTransport.stopFallbackConnection()
     }
 
     /// Asks the TV for a fresh code (the old one expired or the person closed it).

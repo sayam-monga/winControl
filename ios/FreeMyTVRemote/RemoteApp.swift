@@ -91,6 +91,14 @@ struct ContentView: View {
                 }
                 .accessibilityLabel("\(remote.isWindowsPC ? "Windows PC" : "TV"): \(remote.displayName). \(statusText). Choose another device")
                 Spacer()
+                if remote.isWindowsPCFallback {
+                    Button { remote.stopWindowsFallback() } label: {
+                        Image(systemName: "stop.circle")
+                            .font(.title3)
+                            .foregroundStyle(.secondary)
+                    }
+                    .accessibilityLabel("Stop Windows Bluetooth connection")
+                }
                 if !remote.isWindowsPC {
                     CircleButton(symbol: "power", label: "Power", tint: Color(red: 1, green: 0.38, blue: 0.36)) { remote.press(.power) }
                 }

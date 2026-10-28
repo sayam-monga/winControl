@@ -40,7 +40,7 @@ internal sealed class PcRemoteGattServer : IDisposable
             if (adapter is null)
                 throw new NotSupportedException("Windows couldn't find a Bluetooth adapter.");
             if (!adapter.IsPeripheralRoleSupported)
-                throw new NotSupportedException("This Bluetooth adapter can't advertise as a BLE peripheral. The iPhone fallback connection is planned for a later update.");
+                throw new NotSupportedException("This Bluetooth adapter can't advertise as a BLE peripheral.");
 
             var serviceResult = await GattServiceProvider.CreateAsync(RemoteProtocol.ServiceUuid);
             if (serviceResult.ServiceProvider is not null)
@@ -137,7 +137,7 @@ internal sealed class PcRemoteGattServer : IDisposable
     private void Provider_AdvertisementStatusChanged(GattServiceProvider sender, GattServiceProviderAdvertisementStatusChangedEventArgs args)
     {
         if (args.Status is GattServiceProviderAdvertisementStatus.Aborted or GattServiceProviderAdvertisementStatus.Stopped)
-            StatusChanged?.Invoke(this, "Bluetooth advertising stopped. Check that Bluetooth is on, then reopen the receiver.");
+            StatusChanged?.Invoke(this, "Windows BLE advertising stopped unexpectedly.");
         NotifyStatusChanged();
     }
 

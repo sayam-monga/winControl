@@ -28,4 +28,4 @@ The feature includes a small Windows receiver app, BLE discovery and connection 
 
 ## Open requirements questions
 
-None identified for an MVP. The exact pairing UX and Windows packaging format are design choices for the next phase.
+None identified for an MVP. The two pairing directions are documented in the approved INC3 behaviors and design.

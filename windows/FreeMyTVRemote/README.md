@@ -2,13 +2,13 @@
 
 This is the Windows receiver source for controlling a Windows PC from the Free My TV iPhone companion app over Bluetooth Low Energy. It does not use Wi-Fi or an internet relay.
 
-**Implementation status:** INC1 provides the Windows receiver and INC2 adds the iPhone's Bluetooth central, pairing, and PC controls. The full iOS app builds successfully with Xcode. A self-contained x64 Windows executable was cross-published from macOS to `artifacts/FreeMyTVRemote-x64.exe` (about 178 MB). It has not been run on Windows.
+**Implementation status:** INC1/INC2 provide the Windows GATT server and iPhone central; the approved INC3 fallback now has Windows GATT client and iPhone peripheral source paths. The Windows x64 app compiles and packages successfully. Version 1.0.1.0 is signed and the user reports successful installation after closing version 1.0.0.0. A screenshot of the earlier build showed advertising stop while Bluetooth was reported on; version 1.0.1.0 starts the iPhone compatibility scan when server advertising fails. The current INC3 iPhone changes still need an Xcode build. No BLE discovery, pairing, input, or reconnect behavior has been verified on devices.
 
-The executable is not the installable Bluetooth app: the GATT server requires Windows package identity and the `bluetooth` capability. Build and install the signed MSIX on Windows with the Windows SDK using `build-package.ps1`; this workspace has no Windows SDK, so that package is not included yet.
+The executable is not the installable Bluetooth app: the Bluetooth APIs require Windows package identity and the `bluetooth` capability. Build the signed MSIX on Windows with the Windows SDK using `build-package.ps1`. The build was completed with .NET SDK 8.0.427 and Windows SDK 10.0.22621.0.
 
-## Current connection path
+## Connection paths
 
-This first slice uses the Windows GATT server role. It works only when the PC's Bluetooth adapter and driver support BLE peripheral mode. The app checks that support at startup and explains when it is unavailable. The alternate iPhone-advertises / Windows-scans path is planned for the next compatibility increment.
+The receiver checks whether its Bluetooth adapter supports BLE peripheral mode. If it does, Windows advertises and the iPhone finds it in the device picker. If the adapter cannot advertise or the Windows GATT service stops advertising, Windows scans as a GATT client; open the iPhone app's Windows connection screen and keep it in the foreground so it can advertise. In that fallback, the iPhone displays the six-digit pairing code and you enter it in the Windows receiver. The normal Windows-server path displays the code on Windows and you enter it on the iPhone.
 
 The receiver needs to stay open while you use the phone. It requests no administrator privileges. Windows can block injected input in apps running as administrator.
 
@@ -22,31 +22,47 @@ From PowerShell in this folder:
 ./build-package.ps1
 ```
 
-The script creates a self-contained x64 package by default. Use `./build-package.ps1 -Architecture arm64` for ARM64. It signs `artifacts/FreeMyTVRemote-x64.msix` (or `FreeMyTVRemote-arm64.msix`) with a local development certificate and exports `artifacts/FreeMyTVRemote.cer`. To also trust that certificate for the current Windows user and install the x64 package, run:
+The script creates a self-contained x64 package by default. Use `./build-package.ps1 -Architecture arm64` for ARM64. It signs `artifacts/FreeMyTVRemote-x64.msix` (or `FreeMyTVRemote-arm64.msix`) with a local development certificate and exports `artifacts/FreeMyTVRemote.cer`.
+
+An earlier install attempt returned `0x800B0109` because Windows did not trust that package's development certificate. The latest package has a newly exported development certificate. To trust this local development certificate machine-wide, open PowerShell as Administrator and run:
+
+```powershell
+Import-Certificate `
+  -FilePath "C:\winctrl\winControl\windows\FreeMyTVRemote\artifacts\FreeMyTVRemote.cer" `
+  -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+```
+
+This trusts the development signing certificate for packages on this PC. Then, from a normal PowerShell window under the Windows user who should use the app, install the already-built package:
+
+```powershell
+Add-AppxPackage -Path "C:\winctrl\winControl\windows\FreeMyTVRemote\artifacts\FreeMyTVRemote-x64.msix"
+```
+
+The package is installed for that Windows user, not all users. Launch **Free My TV Remote** from Start. To rebuild, use `./build-package.ps1`; to let the script also import to the current user's Trusted People store and install for that user, run:
 
 ```powershell
 ./build-package.ps1 -Install
 ```
 
-Windows will show the package's requested Bluetooth access through its app capability. The development certificate is only for local builds; a public release needs a publisher-owned signing certificate.
+The machine-wide trust step requires administrator rights; the package install does not. The development certificate is only for local builds; a public release needs a publisher-owned signing certificate.
 
 ## Pairing and use
 
-1. Open Free My TV Remote on the PC and leave its window open. If the adapter supports the BLE peripheral role, the receiver advertises the custom GATT service and displays a six-digit code.
-2. Open the iPhone app, choose **Windows PC over Bluetooth**, and select the receiver. Enter the code shown by Windows the first time.
+1. Open Free My TV Remote on the PC and leave its window open. It selects the server or client role from the adapter's peripheral-role support.
+2. In server mode, choose the PC in the iPhone app's **Windows PC over Bluetooth** section and enter the Windows code on the iPhone. In fallback mode, open the iPhone app's Windows connection screen, enter the iPhone-displayed code in the Windows receiver, and keep the phone screen open.
 3. Keep the iPhone app in the foreground and the Windows receiver open while controlling the PC. The same Wi-Fi network and an internet connection are not required.
-4. If pairing was saved on Windows but the iPhone no longer has its Keychain token, choose **Forget paired iPhone** in the Windows app before pairing again.
+4. In fallback mode, use **Forget Windows pairing** on the iPhone to revoke its saved token. If Windows and iPhone report mismatched saved pairing data, forget it on both devices, reconnect, and pair again.
 
 The service and pairing characteristics require an encrypted Bluetooth link. The first secure GATT access may also ask iOS to confirm Bluetooth pairing. The six-digit app code authorizes the remote-control token; the iPhone stores it in Keychain, and Windows stores the token and paired Bluetooth device ID encrypted with current-user DPAPI. Pairing reads and commands are bound to the device ID from the GATT session that entered the code.
 
 ## Version 1 GATT protocol
 
-The source-level protocol contract uses UUIDs fixed in `Protocol/RemoteProtocol.cs` and `docs/planning/implement/windows-bluetooth-pc-remote/design.md`; it has not yet been verified against a Windows build or iPhone client:
+The protocol contract uses UUIDs fixed in `Protocol/RemoteProtocol.cs` and `docs/planning/implement/windows-bluetooth-pc-remote/design.md`. The Windows x64 source compiles; the full iPhone/Windows exchange has not been verified on devices:
 
 | GATT item | UUID | Properties |
 |---|---|---|
 | Service | `6D4F0001-4A2B-4B91-A6D7-31B7C2E10510` | Advertised service |
-| Command | `6D4F0002-4A2B-4B91-A6D7-31B7C2E10510` | Encrypted write with response |
+| Command | `6D4F0002-4A2B-4B91-A6D7-31B7C2E10510` | Windows server: encrypted write with response; iPhone fallback: authenticated notification |
 | Pairing | `6D4F0003-4A2B-4B91-A6D7-31B7C2E10510` | Encrypted read and write |
 | Status | `6D4F0004-4A2B-4B91-A6D7-31B7C2E10510` | Encrypted read and notification |
 

@@ -30,10 +30,10 @@ Both directions use one custom service UUID and one versioned command protocol. 
 
 ### Connection and pairing
 
-1. The person starts the Windows receiver and opens the iPhone app's Windows connection screen.
-2. The Windows receiver selects the supported role and shows its connection status. In server mode, the iPhone finds the PC in the Bluetooth list. In client fallback mode, Windows finds the phone after the person enables PC connection in the iPhone app.
-3. Windows displays a short-lived pairing code. The person enters it in the iPhone app. Both sides enforce a small attempt limit and expiry.
-4. BLE writes require link encryption. The Windows GATT request session identifies the device that submitted the app-level code; the receiver stores that device ID with the random token and only serves the token or commands to that same peer. The iPhone stores the token in Keychain; Windows protects both values with DPAPI. Either side can revoke the pairing.
+1. The person starts the Windows receiver. For fallback, they also open the iPhone app's Windows connection screen and keep the app foregrounded.
+2. The Windows receiver uses its GATT server if the adapter supports peripheral mode. Otherwise it scans as a GATT client. In server mode, the iPhone finds the PC in the Bluetooth list; in fallback mode, Windows finds the phone after its iPhone service is advertised.
+3. In server mode, Windows displays a short-lived pairing code and the person enters it on the iPhone. In fallback mode, the iPhone displays the code and the person enters it in Windows. Both sides enforce code expiry and an attempt limit.
+4. Pairing reads and writes require link encryption. Windows binds the random token to the Bluetooth peer ID and protects the token and ID with DPAPI; the iPhone stores the token in Keychain. Forgetting a Windows-server pairing is done in the Windows receiver; forgetting an iPhone-peripheral pairing is done on the iPhone.
 5. The receiver validates protocol version, frame size, sequence, authentication state, and command allowlist before dispatching any input.
 
 ## Remote command contract
@@ -49,15 +49,15 @@ The UI continues to express semantic actions. The TV transport still maps them t
 | Volume / mute / play-pause | Windows media keys |
 | Type / delete / enter | Unicode keyboard input / Backspace / Enter |
 
-### INC1 GATT contract
+### Shared GATT contract
 
 - Service UUID: `6D4F0001-4A2B-4B91-A6D7-31B7C2E10510`; command characteristic `6D4F0002-4A2B-4B91-A6D7-31B7C2E10510`; pairing characteristic `6D4F0003-4A2B-4B91-A6D7-31B7C2E10510`; status characteristic `6D4F0004-4A2B-4B91-A6D7-31B7C2E10510`.
-- Both characteristics require encrypted GATT reads/writes. The command characteristic accepts write-with-response only.
+- In Windows-server mode, commands use encrypted write-with-response. In iPhone-peripheral mode, the command characteristic sends authenticated notifications to the subscribed Windows client. Pairing and status reads/writes require an encrypted GATT link in both roles.
 - Command frames are `version:u8 | opcode:u8 | sequence:u32-le | payload:0..6 bytes | tag:8 bytes`. The tag is the first 8 bytes of HMAC-SHA-256 over all preceding frame bytes, keyed by the 32-byte pairing token. Maximum frame size is 20 bytes to fit the default 23-byte ATT MTU without a long write.
 - Sequence numbers must strictly increase for the active connection. Version is `1`; malformed frames, unknown opcodes, invalid payloads, bad tags, and replayed sequences are ignored.
 - Opcodes: `0x01` arrow (one direction byte); `0x02` relative pointer move (signed `dx:i16-le`, `dy:i16-le`, each bounded to ±2048); `0x03` left click; `0x04` right click; `0x10` allowlisted key press; `0x11` UTF-8 text chunk (1–6 bytes, split at character boundaries); `0x20` media key. Key and media values are enumerated in `windows/FreeMyTVRemote/Protocol/RemoteProtocol.cs` and its README.
 - Pairing writes are `version:u8 | opcode=0x01 | six ASCII digits`. A valid current code creates a 32-byte random token and binds it to `GattReadRequestedEventArgs.Session.DeviceId.Id` / `GattWriteRequestedEventArgs.Session.DeviceId.Id`. DPAPI protects the token and peer ID together. A read returns the token only to that peer during a short retry window; rejected attempts return a two-byte status frame.
-- The protected status characteristic is readable and notifiable. Its five-byte value is `version | advertising | paired-peer-subscribed | paired | pairing-status`; the paired peer's status subscription starts a new command sequence session. The server serializes command authentication and input dispatch so accepted sequence order matches Windows input order.
+- The protected status characteristic is readable and notifiable. Its five-byte value is `version | advertising | paired-peer-subscribed | paired | pairing-status`; a new connection starts a command sequence session. Windows serializes command authentication and input dispatch so accepted sequence order matches Windows input order.
 - Pairing codes expire after five minutes. Three bad attempts trigger a one-minute lockout. These bounds limit code guessing while keeping setup recoverable without reopening the app.
 
 The Apps tab and Power button are shown only for TV targets. Windows apps running at a higher integrity level may reject input from a normal receiver; the receiver does not request administrator privileges.
@@ -82,7 +82,7 @@ The Apps tab and Power button are shown only for TV targets. Windows apps runnin
 
 - Target Windows 10 version 1703 or later and Windows 11 on x64 or ARM64. The project compiles against the Windows 10 2004 SDK while declaring Windows 10 1703 as its supported minimum; GATT server availability varies by adapter/driver, and fallback uses the Windows GATT client role.
 - The iPhone app must remain in the foreground for the initial version. Background operation, remote desktop video, internet relay, and app launching on Windows are out of scope.
-- This workspace has no Windows/.NET SDK or BLE hardware, so a Windows build and physical tests must run on a Windows PC and an iPhone with the target adapters before claiming device-level compatibility.
+- On 2026-10-29, the Windows x64 source compiled and the MSIX packed and signed on Windows 11 with .NET SDK 8.0.427 and Windows SDK 10.0.22621.0. The current package is not installed. The INC3 iPhone source still needs an Xcode build, and neither BLE role direction has been verified on devices.
 
 ## Sources
 

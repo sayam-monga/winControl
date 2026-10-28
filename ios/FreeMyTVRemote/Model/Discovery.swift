@@ -28,11 +28,13 @@ enum TVTarget: Hashable, Codable {
 enum RemoteTarget: Hashable, Codable {
     case tv(TVTarget)
     case windowsPC(identifier: UUID, name: String)
+    case windowsPCPeripheral(identifier: UUID, name: String)
 
     var label: String {
         switch self {
         case .tv(let target): return target.label
         case .windowsPC(_, let name): return name
+        case .windowsPCPeripheral(_, let name): return name
         }
     }
 
