@@ -2,7 +2,7 @@
 
 This is the Windows receiver source for controlling a Windows PC from the Free My TV iPhone companion app over Bluetooth Low Energy. It does not use Wi-Fi or an internet relay.
 
-**Implementation status:** INC1/INC2 provide the Windows GATT server and iPhone central; the approved INC3 fallback has Windows GATT client and iPhone peripheral source paths. After the user reported a fallback disconnect, commit `22beb31` added encrypted access requests for the iPhone's protected pairing and status characteristics. The Windows source compiled, and MSIX 1.0.2.0 was built, signed, and installed for the current Windows user. Pairing, input, reconnect, and the updated fallback have not yet been retried end to end.
+**Implementation status:** INC1/INC2 provide the Windows GATT server and iPhone central; the approved INC3 fallback has Windows GATT client and iPhone peripheral source paths. After the user reported a fallback disconnect, commit `22beb31` added encrypted access requests for the iPhone's protected pairing and status characteristics. The latest Windows source processes status bytes directly from notifications and serializes status handling and pairing-token reads to avoid overlapping GATT operations. The updated source compiles; MSIX 1.0.3.0 still needs to be packaged and retried on Windows. Pairing, input, reconnect, and the updated fallback have not yet been verified end to end.
 
 The executable is not the installable Bluetooth app: the Bluetooth APIs require Windows package identity and the `bluetooth` capability. Build the signed MSIX on Windows with the Windows SDK using `build-package.ps1`. The build was completed with .NET SDK 8.0.427 and Windows SDK 10.0.22621.0.
 

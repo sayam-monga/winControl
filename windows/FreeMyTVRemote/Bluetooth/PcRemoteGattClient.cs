@@ -15,6 +15,8 @@ internal sealed class PcRemoteGattClient : IDisposable
     private readonly PairingManager _pairing;
     private readonly WindowsInputDispatcher _input;
     private readonly SemaphoreSlim _commandGate = new(1, 1);
+    private readonly SemaphoreSlim _statusGate = new(1, 1);
+    private readonly SemaphoreSlim _pairingReadGate = new(1, 1);
     private BluetoothLEAdvertisementWatcher? _watcher;
     private BluetoothLEDevice? _device;
     private GattDeviceService? _service;
@@ -82,7 +84,8 @@ internal sealed class PcRemoteGattClient : IDisposable
                 return;
             }
 
-            await ReadPairingResultAsync();
+            if (await ReadPairingResultAsync())
+                await UpdateConnectionStateAsync();
         }
         catch (Exception exception)
         {
@@ -178,19 +181,55 @@ internal sealed class PcRemoteGattClient : IDisposable
 
     private async Task UpdateConnectionStateAsync()
     {
-        if (_disposed || _statusCharacteristic is null)
+        var characteristic = _statusCharacteristic;
+        if (_disposed || characteristic is null)
             return;
 
-        var status = await ReadValueAsync(_statusCharacteristic);
+        await _statusGate.WaitAsync();
+        try
+        {
+            if (_disposed || !ReferenceEquals(characteristic, _statusCharacteristic))
+                return;
+
+            var status = await ReadValueAsync(characteristic);
+            await ApplyConnectionStatusCoreAsync(status, characteristic);
+        }
+        finally
+        {
+            _statusGate.Release();
+        }
+    }
+
+    private async Task ApplyConnectionStatusAsync(byte[] status, GattCharacteristic source)
+    {
+        await _statusGate.WaitAsync();
+        try
+        {
+            await ApplyConnectionStatusCoreAsync(status, source);
+        }
+        finally
+        {
+            _statusGate.Release();
+        }
+    }
+
+    private async Task ApplyConnectionStatusCoreAsync(byte[] status, GattCharacteristic source)
+    {
+        if (_disposed || !ReferenceEquals(source, _statusCharacteristic))
+            return;
+
         if (status.Length != 5 || status[0] != RemoteProtocol.Version)
             throw new InvalidOperationException("The iPhone returned an unsupported Bluetooth status.");
 
+        var peerDeviceId = _peerDeviceId;
         if (status[3] != 0)
         {
-            if (!_pairing.IsPairedPeer(_peerDeviceId))
+            if (!_pairing.IsPairedPeer(peerDeviceId))
             {
                 await ReadPairingResultAsync();
-                if (!_pairing.IsPairedPeer(_peerDeviceId))
+                if (_disposed || !ReferenceEquals(source, _statusCharacteristic) || peerDeviceId != _peerDeviceId)
+                    return;
+                if (!_pairing.IsPairedPeer(peerDeviceId))
                 {
                     IsConnected = false;
                     IsWaitingForPairing = true;
@@ -199,9 +238,12 @@ internal sealed class PcRemoteGattClient : IDisposable
                     return;
                 }
             }
+
+            if (_disposed || !ReferenceEquals(source, _statusCharacteristic) || peerDeviceId != _peerDeviceId)
+                return;
             if (!_sessionStarted)
             {
-                _pairing.BeginConnectionSession(_peerDeviceId);
+                _pairing.BeginConnectionSession(peerDeviceId);
                 _sessionStarted = true;
             }
             IsWaitingForPairing = false;
@@ -219,32 +261,49 @@ internal sealed class PcRemoteGattClient : IDisposable
         StateChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    private async Task ReadPairingResultAsync()
+    private async Task<bool> ReadPairingResultAsync()
     {
-        if (_pairingCharacteristic is null)
-            return;
-        var value = await ReadValueAsync(_pairingCharacteristic);
-        if (value.Length == 32)
-        {
-            if (!_pairing.SavePairingToken(value, _peerDeviceId))
-                throw new InvalidOperationException(_pairing.StorageError ?? "Windows already has a pairing for a different iPhone. Forget that pairing first.");
-            await UpdateConnectionStateAsync();
-            return;
-        }
+        var characteristic = _pairingCharacteristic;
+        var peerDeviceId = _peerDeviceId;
+        if (_disposed || characteristic is null || string.IsNullOrEmpty(peerDeviceId))
+            return false;
 
-        if (value.Length != 2 || value[0] != RemoteProtocol.Version)
-            throw new InvalidOperationException("The iPhone returned an invalid pairing response.");
-        var status = (PairingReadStatus)value[1];
-        StatusChanged?.Invoke(this, status switch
+        await _pairingReadGate.WaitAsync();
+        try
         {
-            PairingReadStatus.Idle => "Enter the six-digit code shown in the iPhone app.",
-            PairingReadStatus.InvalidCode => "That code wasn't correct. Check the six digits shown on the iPhone and try again.",
-            PairingReadStatus.Locked => "Pairing is temporarily locked after three incorrect codes. Wait one minute and retry.",
-            PairingReadStatus.Paired => "The iPhone reports an existing pairing. Forget its saved Windows pairing before pairing again.",
-            PairingReadStatus.CodeExpired => "The pairing code expired. Use the current code shown on the iPhone.",
-            _ => "The iPhone couldn't save the pairing. Check Keychain storage and retry."
-        });
-        StateChanged?.Invoke(this, EventArgs.Empty);
+            if (_disposed || !ReferenceEquals(characteristic, _pairingCharacteristic) || peerDeviceId != _peerDeviceId)
+                return false;
+            if (_pairing.IsPairedPeer(peerDeviceId))
+                return true;
+            var value = await ReadValueAsync(characteristic);
+            if (_disposed || !ReferenceEquals(characteristic, _pairingCharacteristic) || peerDeviceId != _peerDeviceId)
+                return false;
+            if (value.Length == 32)
+            {
+                if (!_pairing.SavePairingToken(value, peerDeviceId))
+                    throw new InvalidOperationException(_pairing.StorageError ?? "Windows already has a pairing for a different iPhone. Forget that pairing first.");
+                return true;
+            }
+
+            if (value.Length != 2 || value[0] != RemoteProtocol.Version)
+                throw new InvalidOperationException("The iPhone returned an invalid pairing response.");
+            var status = (PairingReadStatus)value[1];
+            StatusChanged?.Invoke(this, status switch
+            {
+                PairingReadStatus.Idle => "Enter the six-digit code shown in the iPhone app.",
+                PairingReadStatus.InvalidCode => "That code wasn't correct. Check the six digits shown on the iPhone and try again.",
+                PairingReadStatus.Locked => "Pairing is temporarily locked after three incorrect codes. Wait one minute and retry.",
+                PairingReadStatus.Paired => "The iPhone reports an existing pairing. Forget its saved Windows pairing before pairing again.",
+                PairingReadStatus.CodeExpired => "The pairing code expired. Use the current code shown on the iPhone.",
+                _ => "The iPhone couldn't save the pairing. Check Keychain storage and retry."
+            });
+            StateChanged?.Invoke(this, EventArgs.Empty);
+            return false;
+        }
+        finally
+        {
+            _pairingReadGate.Release();
+        }
     }
 
     private async Task<byte[]> ReadValueAsync(GattCharacteristic characteristic)
@@ -286,17 +345,26 @@ internal sealed class PcRemoteGattClient : IDisposable
 
     private async void StatusCharacteristic_ValueChanged(GattCharacteristic sender, GattValueChangedEventArgs args)
     {
-        try { await UpdateConnectionStateAsync(); }
+        if (_disposed || !ReferenceEquals(sender, _statusCharacteristic))
+            return;
+
+        try
+        {
+            using var reader = DataReader.FromBuffer(args.CharacteristicValue);
+            var status = new byte[checked((int)args.CharacteristicValue.Length)];
+            reader.ReadBytes(status);
+            await ApplyConnectionStatusAsync(status, sender);
+        }
         catch (Exception exception)
         {
-            if (!_disposed)
+            if (!_disposed && ReferenceEquals(sender, _statusCharacteristic))
                 StatusChanged?.Invoke(this, $"The iPhone Bluetooth connection needs attention: {exception.Message}");
         }
     }
 
     private void Device_ConnectionStatusChanged(BluetoothLEDevice sender, object args)
     {
-        if (_disposed || sender.ConnectionStatus != BluetoothConnectionStatus.Disconnected)
+        if (_disposed || !ReferenceEquals(sender, _device) || sender.ConnectionStatus != BluetoothConnectionStatus.Disconnected)
             return;
         IsConnected = false;
         IsWaitingForPairing = false;
