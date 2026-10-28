@@ -1,10 +1,10 @@
-# Windows-to-Mac handoff
+# Windows BLE fix handoff
 
-Updated 2026-10-29. This handoff captures the Windows-side work and the next iPhone build/device pass.
+Updated 2026-10-29. This handoff captures the reported disconnect and the Windows-side source fix for pickup on the Windows PC.
 
-## Carry the current work to Mac
+## Pick up the Windows change
 
-The current checkout is on `main` at base commit `cc9d32a`, matching `origin/main` when work began. The changes described here are still uncommitted on the Windows machine, including the new `windows/FreeMyTVRemote/Bluetooth/PcRemoteGattClient.cs`. A fresh Mac clone from GitHub will not contain them. Continue in the same synced checkout or transfer the entire working tree, including untracked files, before switching machines. No commit or push has been made.
+The current continuation branch is `codex/windows-bluetooth-fallback`. It includes the source fix in `windows/FreeMyTVRemote/Bluetooth/PcRemoteGattClient.cs` and updated status notes. The source compiled in a .NET 8 SDK container with Windows targeting enabled (0 errors, 3 existing CA1416 warnings), but no MSIX was produced. Pull this branch on Windows, rebuild the MSIX, install it, and retry the Bluetooth connection. The fix sets `GattCharacteristic.ProtectionLevel` to `EncryptionRequired` on the iPhone pairing and status characteristics before using them, matching the encrypted-access permissions declared by the iPhone.
 
 ## Windows build and installation
 

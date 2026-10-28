@@ -140,6 +140,10 @@ internal sealed class PcRemoteGattClient : IDisposable
             if (_commandCharacteristic is null || _pairingCharacteristic is null || _statusCharacteristic is null)
                 throw new InvalidOperationException("The iPhone is missing a required Bluetooth control.");
 
+            // The iPhone marks pairing and status values as trusted-device-only; request an encrypted link before using them.
+            _pairingCharacteristic.ProtectionLevel = GattProtectionLevel.EncryptionRequired;
+            _statusCharacteristic.ProtectionLevel = GattProtectionLevel.EncryptionRequired;
+
             _commandCharacteristic.ValueChanged += CommandCharacteristic_ValueChanged;
             _statusCharacteristic.ValueChanged += StatusCharacteristic_ValueChanged;
             await SubscribeAsync(_statusCharacteristic, "connection status");
